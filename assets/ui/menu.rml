@@ -1,0 +1,90 @@
+<rml>
+<head>
+    <title>Main Menu</title>
+    <style>
+        body {
+            font-family: Arial;
+            font-size: 24px;
+            color: #eeeeee;
+            /* Простой темный фон вместо сложного градиента */
+            background-color: #00000088;
+            width: 100%;
+            height: 100%;
+            /* Flexbox может не работать в старых версиях, но попробуем */
+            /* Если не работает display: flex, используй absolute positioning */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        div#container {
+            display: flex;
+            flex-direction: column;
+            width: 400px;
+            padding: 40px;
+            background-color: #00000088;
+            border-radius: 15px;
+            /* box-shadow: ... (требует декоратора, пока уберем) */
+        }
+
+        h1 {
+            font-size: 52px;
+            text-align: center;
+            margin-bottom: 40px;
+            color: #e94560;
+            font-weight: bold;
+            /* Исправленная тень текста */
+            font-effect: shadow(2px 2px #000); 
+        }
+
+        button {
+            display: block;
+            width: 100%;
+            padding: 15px 0;
+            margin-bottom: 20px;
+            font-size: 24px;
+            color: white;
+            background-color: #0f3460;
+            
+            /* Исправленный бордер (без solid) */
+            border: 2px #16213e; 
+            border-radius: 8px;
+            text-align: center;
+            
+            /* Упрощенная анимация */
+            transition: background-color transform 0.2s;
+        }
+
+        button:hover {
+            background-color: #e94560;
+            /* border-color работает, если border уже задан */
+            border-color: #ffcccc; 
+            /* transform может требовать включения в RmlUi, но обычно работает */
+            transform: scale(1.05); 
+        }
+
+        button:active {
+            transform: scale(0.98);
+            background-color: #c0354c;
+        }
+
+        button#btn_exit {
+            background-color: #333;
+            font-size: 20px;
+            margin-top: 10px;
+        }
+        button#btn_exit:hover {
+            background-color: #555;
+        }
+
+    </style>
+</head>
+<body>
+    <div id="container">
+        <h1>RB ENGINE</h1>
+        <button id="btn_start">Start Game</button>
+        <button id="btn_options">Options</button>
+        <button id="btn_exit">Exit Desktop</button>
+    </div>
+</body>
+</rml>

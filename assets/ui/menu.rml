@@ -6,12 +6,9 @@
             font-family: Arial;
             font-size: 24px;
             color: #eeeeee;
-            /* Простой темный фон вместо сложного градиента */
             background-color: #00000088;
             width: 100%;
             height: 100%;
-            /* Flexbox может не работать в старых версиях, но попробуем */
-            /* Если не работает display: flex, используй absolute positioning */
             display: flex;
             justify-content: center;
             align-items: center;
@@ -24,7 +21,6 @@
             padding: 40px;
             background-color: #00000088;
             border-radius: 15px;
-            /* box-shadow: ... (требует декоратора, пока уберем) */
         }
 
         h1 {
@@ -33,7 +29,6 @@
             margin-bottom: 40px;
             color: #e94560;
             font-weight: bold;
-            /* Исправленная тень текста */
             font-effect: shadow(2px 2px #000); 
         }
 
@@ -46,20 +41,16 @@
             color: white;
             background-color: #0f3460;
             
-            /* Исправленный бордер (без solid) */
             border: 2px #16213e; 
             border-radius: 8px;
             text-align: center;
             
-            /* Упрощенная анимация */
             transition: background-color transform 0.2s;
         }
 
         button:hover {
             background-color: #e94560;
-            /* border-color работает, если border уже задан */
             border-color: #ffcccc; 
-            /* transform может требовать включения в RmlUi, но обычно работает */
             transform: scale(1.05); 
         }
 

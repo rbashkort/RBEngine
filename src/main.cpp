@@ -138,13 +138,13 @@ int main(void){
         if(eng.isKeyPressed(GLFW_KEY_1)) {eng.ui.closeDocument("assets/ui/menu.rml");
                                                eng.loadScene("Level1");
                                                eng.ui.loadDocument("assets/ui/level1.rml"); };
-        // Логика управления игроком (только если мы в игре)
+        // Player control logic (only if we are in the game)
         if (eng.isCurrentScene("Level1")) {
-            auto player = eng.getEntity("Player"); // Ищем по имени
+            auto player = eng.getEntity("Player"); // Looking for player
             if (player.is_valid()) {
                 auto v = player.getComponentMut<E_Velocity>();
                 if (v) {
-                    v->vx = 0; v->vy = 0; // Сброс скорости
+                    v->vx = 0; v->vy = 0; // speed reduction
                     if(eng.isKeyDown(GLFW_KEY_W)) v->vy = -player_speed;
                     if(eng.isKeyDown(GLFW_KEY_S)) v->vy =  player_speed;
                     if(eng.isKeyDown(GLFW_KEY_A)) v->vx = -player_speed;

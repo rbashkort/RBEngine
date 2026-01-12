@@ -12,8 +12,7 @@
             position: absolute;
             top: 20px;
             left: 50%;
-            /* transform: translateX(-50%); - может не работать */
-            margin-left: -100px; /* Хак для центровки, если transform не работает */
+            margin-left: -100px;
             width: 200px;
             text-align: center;
             
@@ -21,7 +20,6 @@
             padding: 10px 30px;
             border-radius: 20px;
             
-            /* FIX 1: убрали solid */
             border: 2px #0f3460;
             
             color: #fff;
@@ -41,7 +39,6 @@
             color: #ddd;
             margin-bottom: 5px;
             
-            /* FIX 2: font-effect вместо text-shadow */
             font-effect: shadow(1px 1px #000);
         }
 
@@ -53,17 +50,14 @@
             /* FIX 3: убрали solid */
             border: 2px #555;
             border-radius: 12px;
-            /* overflow: hidden; - RmlUi может не поддерживать overflow для border-radius */
         }
 
         #health-fill {
             width: 100%; 
             height: 100%;
             
-            /* FIX 4: Простой цвет вместо градиента */
             background-color: #e74c3c;
             
-            /* FIX 5: Упростили transition */
             transition: width 0.3s;
         }
 

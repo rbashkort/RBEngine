@@ -34,6 +34,9 @@ void ECSWorld::init() {
     world.set<E_InputState>(initState);
     printf("[Engine] Components registered\n");
 
+    qColliders_ = world.query<E_Transform, E_Collider>();
+    qCamera_ = world.query<E_Transform, E_Camera>();
+
     // --- Move System ---
     world.system<E_Transform, E_Velocity>("MoveSystem")
         .each([](flecs::entity e, E_Transform& t, E_Velocity& v) {
@@ -52,8 +55,6 @@ void ECSWorld::init() {
                 v.vy += g.a * dt;
             }
         }); 
-
-    qColliders_ = world.query<E_Transform, E_Collider>();
 
     // --------------------------------------------------------
     // Helpers (Local lambdas)
@@ -479,10 +480,53 @@ void ECSWorld::drawSprite(E_Sprite sprite, bool isLineLoop) {
 
 bool ECSWorld::hoverIt(E_Sprite &s, flecs::entity &e, E_Transform &t)
 {
-    auto input = e.world().get_ref<E_InputState>();
+    // 1. Check if entity is valid
+    if (!e.is_alive()) return false;
+
+    // 2. Get World and Check Input Presence
+    const flecs::world& w = e.world();
+    if (!w.has<E_InputState>()) return false;
+
+    // 3. Safe Input Access (Take address of reference)
+    const E_InputState* input = &w.get<E_InputState>();
+
     float mx = (float)input->mouseX;
     float my = (float)input->mouseY;
 
+    // 4. Safe Window Size Access
+    float winW = 800.0f;
+    float winH = 600.0f;
+    
+    if (w.has<E_WindowSize>()) {
+        const E_WindowSize* ws = &w.get<E_WindowSize>(); // Address of reference
+        winW = (float)ws->w;
+        winH = (float)ws->h;
+    }
+
+    // 5. Camera Logic
+    float camX = winW * 0.5f; 
+    float camY = winH * 0.5f;
+    float zoom = 1.0f;
+
+    qCamera_.each([&](flecs::entity eCam, E_Transform& ct, E_Camera& cc) {
+        if (cc.active) {
+            camX = ct.x;
+            camY = ct.y;
+            zoom = cc.zoom;
+        }
+    });
+
+    // 6. Coordinates Calculation
+    float screenCenteredX = mx - winW * 0.5f;
+    float screenCenteredY = my - winH * 0.5f;
+
+    float unzoomedX = screenCenteredX / zoom;
+    float unzoomedY = screenCenteredY / zoom;
+
+    float worldMX = unzoomedX + camX;
+    float worldMY = unzoomedY + camY;
+
+    // 7. AABB Logic
     float left, right, top, bottom;
 
     switch(s.type) {
@@ -514,17 +558,21 @@ bool ECSWorld::hoverIt(E_Sprite &s, flecs::entity &e, E_Transform &t)
         default: return false;
     }
 
-    bool isInside = (mx >= left && mx <= right && my >= top && my <= bottom);
+    bool isInside = (worldMX >= left && worldMX <= right && worldMY >= top && worldMY <= bottom);
 
-    const E_EffectHover* Chover = e.has<E_EffectHover>() ? &e.get<E_EffectHover>() : nullptr;
-    if (Chover) {
-         if (isInside) {
-            t.xScale = Chover->offsetX; t.yScale = Chover->offsetY;
-        } else {
-            t.xScale = 1.0f; t.yScale = 1.0f;
+    // 8. Safe Effect Access
+    if (e.has<E_EffectHover>()) {
+        const E_EffectHover* Chover = &e.get<E_EffectHover>(); // Address of reference
+        if (Chover->work) {
+             if (isInside) {
+                t.xScale = Chover->offsetX; 
+                t.yScale = Chover->offsetY;
+            } else {
+                t.xScale = 1.0f; 
+                t.yScale = 1.0f;
+            }
         }
     }
 
     return isInside;
 }
-

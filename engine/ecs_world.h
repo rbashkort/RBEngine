@@ -60,4 +60,6 @@ private:
     
     // Cached query for optimization
     flecs::query<E_Transform, E_Collider> qColliders_;
+    flecs::query<E_Transform, E_Camera> qCamera_;
+
 };

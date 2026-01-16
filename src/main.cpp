@@ -1,10 +1,11 @@
 //
 //  example.cpp rbashkort 11/01/2026
 //  Showcase of RBEngine features
-//
 
 #include "../engine/engine.h"
 #include "../engine/ImGuiLayer.h" 
+#include "components.h"
+#include <GLFW/glfw3.h>
 #include <string>
 
 #define WINDOW_W 1024
@@ -36,6 +37,7 @@ void SceneLevel1(Engine &eng){
         E_Sprite{E_Sprite::RECTANGLE, 75, 200, 0},
         E_Texture{texPlayer},
         E_Color{eng.ReturnColor(E_WHITE)},
+        E_Camera{1.f, true},
         E_Velocity{0, 0},
         E_Collider{ColliderType::Rect, 75, 200, 0},
         E_EffectShadow{5.0f},
@@ -135,20 +137,22 @@ int main(void){
     // --- Input & Update ---
     
     eng.onInput = [&]() {
-        if(eng.isKeyPressed(GLFW_KEY_1)) {eng.ui.closeDocument("assets/ui/menu.rml");
-                                               eng.loadScene("Level1");
-                                               eng.ui.loadDocument("assets/ui/level1.rml"); };
         // Player control logic (only if we are in the game)
         if (eng.isCurrentScene("Level1")) {
             auto player = eng.getEntity("Player"); // Looking for player
+            E_Camera* camera;
             if (player.is_valid()) {
                 auto v = player.getComponentMut<E_Velocity>();
+                if(player.hasComponent<E_Camera>()) camera = player.getComponentMut<E_Camera>();
                 if (v) {
                     v->vx = 0; v->vy = 0; // speed reduction
                     if(eng.isKeyDown(GLFW_KEY_W)) v->vy = -player_speed;
                     if(eng.isKeyDown(GLFW_KEY_S)) v->vy =  player_speed;
                     if(eng.isKeyDown(GLFW_KEY_A)) v->vx = -player_speed;
                     if(eng.isKeyDown(GLFW_KEY_D)) v->vx =  player_speed;
+                }
+                if(camera) {
+                    if(eng.isKeyPressed(GLFW_KEY_1)) {if(camera->active) { camera->active = false; } else { camera->active = false; } };
                 }
                 if(eng.isKeyPressed(GLFW_KEY_R)) eng.reloadScene();
             }

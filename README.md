@@ -35,9 +35,9 @@ make -j$(nproc)
 - [x] Input System - Keyboard & Mouse handling.
 - [x] Scene Management - Load/Reload scenes easily.
 - [x] Sprite System - Textures, Colors, Basic Shapes.
+- [x] Camera System Refactoring - Proper Screen-to-World coordinate conversion for mouse interaction.
 
 ### 📝 TODO (Roadmap)
-- [ ] Camera System Refactoring - Proper Screen-to-World coordinate conversion for mouse interaction.
 - [ ] Sound System - Integration with miniaudio or Soloud.
 - [ ] Animation System - Sprite sheet support.
 - [ ] Particle System - Basic effects.

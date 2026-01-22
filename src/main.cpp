@@ -40,8 +40,9 @@ void SceneLevel1(Engine &eng){
         E_Camera{1.f, true},
         E_Velocity{0, 0},
         E_Collider{ColliderType::Rect, 75, 200, 0},
-        E_EffectShadow{5.0f},
-        E_EffectOutline{2.0f}
+        //E_EffectShadow{5.0f},
+        //E_EffectOutline{2.0f}
+        E_EffectBloom{2}
     );
 
     // Тестовые препятствия
@@ -51,7 +52,8 @@ void SceneLevel1(Engine &eng){
         E_Sprite{E_Sprite::RECTANGLE, 50, 50, 0},
         E_Color{eng.ReturnColor(E_RED)},
         E_Collider{ColliderType::Rect, 50, 50}, 
-        E_EffectHover{1.2f, 1.2f, true}
+        E_EffectHover{1.2f, 1.2f, true},
+        E_EffectBloom{2}
     );
 
     auto Ball = eng.createEntity("BallClickable");

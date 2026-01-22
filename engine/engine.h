@@ -4,15 +4,16 @@
 
 #pragma once
 
-#include <GL/gl.h>
+//#include <GL/gl.h>
+#include "components.h"
 #include <GLFW/glfw3.h>
+
 #include <string>
 #include <functional>
 #include <flecs.h>
 #include <map>
 
 #include "UIManager.h"
-#include "components.h"
 #include "entity.h"
 #include "ecs_world.h"
 

@@ -1,10 +1,13 @@
 # engine/CMakeLists.txt
+
+
 add_library(engine_lib STATIC
     engine.cpp
     ecs_world.cpp
     entity.cpp
     TextureManager.cpp 
     UIManager.cpp
+    glad.c
 
     ImGuiLayer.h
 )
@@ -20,6 +23,7 @@ target_link_libraries(engine_lib
     PUBLIC
         glfw
         GL
+        glm
         RmlUi::Core
         RmlUi::Debugger
     PRIVATE

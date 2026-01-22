@@ -29,7 +29,7 @@ make -j$(nproc)
 
 ### ✅ Features (Implemented)
 - [x] ECS Architecture (Flecs based) - fast and modular.
-- [x] Rendering System (OpenGL 2.1 legacy support for max compatibility).
+- [x] Rendering System (OpenGL 3.2).
 - [x] Physics System (SAT Collision detection for Rects, Circles, Polygons).
 - [x] UI System (RmlUi) - Layouts using HTML/CSS syntax.
 - [x] Input System - Keyboard & Mouse handling.

@@ -3,6 +3,7 @@
 //
 
 #include "UIManager.h"
+
 #include <GLFW/glfw3.h>
 #include <RmlUi/Core.h>
 #include <RmlUi/Debugger.h>
@@ -32,36 +33,26 @@ void UIManager::update() {
 }
 
 void UIManager::render() {
-    glPushAttrib(GL_ALL_ATTRIB_BITS);
-
-    glMatrixMode(GL_PROJECTION);
-    glPushMatrix();
-    glLoadIdentity();
-
-    int w = context->GetDimensions().x;
-    int h = context->GetDimensions().y;
-
-    glOrtho(0, w, h, 0, -1000, 1000);
-
-    glMatrixMode(GL_MODELVIEW);
-    glPushMatrix();
-    glLoadIdentity();
-
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
-    
-    glDisable(GL_SCISSOR_TEST); 
+
+    // Получаем размеры
+    int w = 800, h = 600;
+    if (context) {
+        w = context->GetDimensions().x;
+        h = context->GetDimensions().y;
+    }
+
+    auto* renderInterface = (RBRenderInterface*)Rml::GetRenderInterface();
+    if(renderInterface) renderInterface->SetViewport(w, h);
 
     if (context) context->Render();
-
-    glMatrixMode(GL_MODELVIEW);
-    glPopMatrix();
-
-    glMatrixMode(GL_PROJECTION);
-    glPopMatrix();
-    glPopAttrib(); 
+    
+    glDisable(GL_BLEND);
+    glEnable(GL_DEPTH_TEST);
 }
 
 Rml::ElementDocument* UIManager::loadDocument(const std::string& path) {

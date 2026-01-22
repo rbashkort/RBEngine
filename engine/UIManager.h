@@ -3,9 +3,9 @@
 //
 
 #pragma once
-#include <RmlUi/Core.h>
-#include "ui/RBSystemInterface.h"
 #include "ui/RBRenderInterface.h"
+#include "ui/RBSystemInterface.h"
+#include <RmlUi/Core.h>
 #include <string>
 
 class UIManager {

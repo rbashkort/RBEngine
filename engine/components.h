@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include <GL/gl.h>
+#include "glad.h"
+//#include <GL/gl.h>
 #include <GLFW/glfw3.h>
 #include <functional>
 #include <flecs.h>
-#include <string>
 
 struct BackGroundColor {
     GLfloat r, g, b, a;
@@ -93,6 +93,14 @@ struct E_EffectShadow { float offset = 3; bool work = true; };
 struct E_EffectOutline { float length = 2; bool work = true; };
 struct E_EffectHover { float offsetX = 1.1; float offsetY = 1.1; bool work = true; };
 struct E_EffectTranspare { float alpha = 0.9; bool work = true; };
+
+struct E_EffectBloom {
+    float intensity = 1.0f;
+    float radius = 5.0f;
+    float threshold = 0.8f;
+    bool work = true;
+};
+
 
 // === Physics & Collision ===
 

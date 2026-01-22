@@ -4,12 +4,12 @@
 
 #pragma once
 
+#include "components.h" 
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 #include <functional>
-#include <flecs.h>
-#include "components.h" 
+#include <flecs.h> 
 
 // Hashing helper for spatial grid
 static inline uint64_t hashCellGlobal(int x, int y) { 
@@ -22,6 +22,7 @@ public:
     
     // Initializes the world, registers components and systems
     void init();
+    void initRender();
     
     // Updates the ECS world (ticks systems)
     void update(float dt);
@@ -30,9 +31,7 @@ public:
 
     // Render helpers
     void drawSprite(E_Sprite sprite, bool isLineLoop = false);
-    
-    // Helper to check if mouse is hovering over an entity
-    // TODO: Needs to account for Camera position/zoom in future
+
     bool hoverIt(E_Sprite &s, flecs::entity &e, E_Transform &t);
 
 private:
@@ -62,4 +61,24 @@ private:
     flecs::query<E_Transform, E_Collider> qColliders_;
     flecs::query<E_Transform, E_Camera> qCamera_;
 
+    // OpenGL Render Data
+    unsigned int VAO = 0, VBO = 0, EBO = 0; // Vertex Array, Buffer, Element Buffer
+    unsigned int shaderProgram = 0;
+
+    unsigned int VAO_Rect = 0, VBO_Rect = 0;
+    unsigned int VAO_Circle = 0, VBO_Circle = 0;
+    unsigned int VAO_Tri = 0, VBO_Tri = 0;
+    int numCircleVerts = 32;
+
+    
+    // Shader Uniform Locations
+    int uColorLoc = -1;
+    int uModelLoc = -1;
+    int uProjLoc = -1;
+    int uViewLoc = -1;
+    int uUseTexLoc = -1;
+    int uTextureLoc = -1;
+    int uBloomLoc = -1;
+
+    unsigned int createShader(const char* vShader, const char* fShader);
 };

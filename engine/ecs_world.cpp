@@ -6,7 +6,6 @@
 #include "components.h"
 #include "physics.hpp"
 
-#include <GL/gl.h>
 #include <GLFW/glfw3.h>
 #include <flecs/addons/cpp/entity.hpp>
 #include <flecs/addons/cpp/iter.hpp>
@@ -14,6 +13,9 @@
 #include <flecs/addons/cpp/ref.hpp>
 #include <math.h>
 #include <cstdio>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 template<typename... Components>
 static void register_components(flecs::world& w) {
@@ -362,69 +364,6 @@ void ECSWorld::init() {
                 btn.onClick();
             }
         });
-
-    // --- Render System ---
-    world.system<E_Transform, E_Sprite>("RenderSystem")
-        .each([this](flecs::entity e, E_Transform& t, E_Sprite& sprite) {
-            const E_Color* color = e.has<E_Color>() ? &e.get<E_Color>() : nullptr;
-            const E_Texture* tex = e.has<E_Texture>() ? &e.get<E_Texture>() : nullptr;
-            const E_EffectShadow* shadow = e.has<E_EffectShadow>() ? &e.get<E_EffectShadow>() : nullptr;
-            const E_EffectOutline* outline = e.has<E_EffectOutline>() ? &e.get<E_EffectOutline>() : nullptr;
-            const E_EffectTranspare* trans = e.has<E_EffectTranspare>() ? &e.get<E_EffectTranspare>() : nullptr;
-            const E_EffectHover* hover = e.has<E_EffectHover>() ? &e.get<E_EffectHover>() : nullptr;
-
-            if(hover) {
-                hoverIt(sprite, e, t);
-            }
-
-            glPushMatrix();
-            glTranslatef(t.x, t.y, t.layer);
-            glRotatef(t.angle, 0.f, 0.f, 1.f);
-            glScalef(t.xScale, t.yScale, 1.f);
-
-            float alpha = (trans && trans->work) ? trans->alpha : 1.f;
-
-            if (shadow && shadow->work) {
-                glPushMatrix();
-                glTranslatef(shadow->offset, shadow->offset, t.layer-1.f);
-                glDisable(GL_TEXTURE_2D);
-                glColor4f(0.f, 0.f, 0.f, 0.5f * alpha);
-                drawSprite(sprite);
-                glPopMatrix();
-            }
-
-            if (tex && tex->id != 0) {
-                glColor4f(1.f, 1.f, 1.f, alpha); 
-                glEnable(GL_TEXTURE_2D);
-                glBindTexture(GL_TEXTURE_2D, tex->id);
-
-                float hw = sprite.width / 2.0f;
-                float hh = sprite.height / 2.0f;
-
-                glBegin(GL_QUADS);
-                glTexCoord2f(0.f, 0.f); glVertex2f(-hw, -hh);
-                glTexCoord2f(1.f, 0.f); glVertex2f( hw, -hh);
-                glTexCoord2f(1.f, 1.f); glVertex2f( hw,  hh);
-                glTexCoord2f(0.f, 1.f); glVertex2f(-hw,  hh);
-                glEnd();
-    
-                glBindTexture(GL_TEXTURE_2D, 0);
-                glDisable(GL_TEXTURE_2D);
-            }
-            else {
-                if (color) glColor4f(color->r, color->g, color->b, alpha);
-                else glColor4f(1.f, 1.f, 1.f, alpha);
-                drawSprite(sprite);
-            }
-
-            if(outline && outline->work) {
-                glLineWidth((float)outline->length);
-                glColor4f(0.f, 0.f, 0.f, alpha);
-                drawSprite(sprite, true);
-            }
-
-            glPopMatrix();
-        });
     
     // --- Post Update: Clear Events ---
     world.system<E_CollisionEvent>("ClearCollisionEvents")
@@ -435,47 +374,253 @@ void ECSWorld::init() {
 
     printf("[Engine] ECS world init done\n");
 }
+void ECSWorld::initRender() {
+    printf("[Engine] Initializing Render Resources...\n");
+    
+    const char* vShaderSrc = R"(
+        #version 330 core
+        layout (location = 0) in vec2 aPos;
+        layout (location = 1) in vec2 aTexCoord;
+
+        out vec2 TexCoord;
+
+        uniform mat4 model;
+        uniform mat4 view;
+        uniform mat4 projection;
+
+        void main() {
+            gl_Position = projection * view * model * vec4(aPos, 0.0, 1.0);
+            TexCoord = aTexCoord;
+        }
+    )";
+
+    const char* fShaderSrc = R"(
+        #version 330 core
+        out vec4 FragColor;
+        
+        in vec2 TexCoord;
+
+        uniform vec4 color;
+        uniform sampler2D image;
+        uniform bool useTexture;
+
+        void main() {
+            if(useTexture) {
+                vec4 texColor = texture(image, TexCoord);
+                FragColor = texColor * color;
+            } else {
+                FragColor = color;
+            }
+        }
+    )";
+
+    shaderProgram = createShader(vShaderSrc, fShaderSrc);
+    uModelLoc = glGetUniformLocation(shaderProgram, "model");
+    uViewLoc = glGetUniformLocation(shaderProgram, "view");
+    uProjLoc = glGetUniformLocation(shaderProgram, "projection");
+    uColorLoc = glGetUniformLocation(shaderProgram, "color");
+    uUseTexLoc = glGetUniformLocation(shaderProgram, "useTexture");
+    uTextureLoc = glGetUniformLocation(shaderProgram, "image");
+    uBloomLoc = glGetUniformLocation(shaderProgram, "bloomIntensity");
+
+      // --- 1. RECTANGLE (Quad) ---
+    float rectVerts[] = { 
+        // pos        // tex
+        -0.5f, -0.5f,  0.0f, 0.0f, 
+         0.5f, -0.5f,  1.0f, 0.0f, 
+         0.5f,  0.5f,  1.0f, 1.0f, 
+        -0.5f,  0.5f,  0.0f, 1.0f  
+    };
+    unsigned int rectInd[] = { 0, 1, 2, 2, 3, 0 };
+
+    glGenVertexArrays(1, &VAO_Rect); glGenBuffers(1, &VBO_Rect); 
+    unsigned int EBO_Rect; glGenBuffers(1, &EBO_Rect);
+
+    glBindVertexArray(VAO_Rect);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO_Rect);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(rectVerts), rectVerts, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_Rect);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(rectInd), rectInd, GL_STATIC_DRAW);
+    
+    // Attribs (0=Pos, 1=Tex)
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4*sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4*sizeof(float), (void*)(2*sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    // --- 2. TRIANGLE ---
+    float triVerts[] = {
+        // pos         // tex (примерные)
+        -0.5f,  0.5f,  0.0f, 1.0f, // Left Bottom
+         0.5f,  0.5f,  1.0f, 1.0f, // Right Bottom
+         0.0f, -0.5f,  0.5f, 0.0f  // Top Center
+    };
+
+    glGenVertexArrays(1, &VAO_Tri); glGenBuffers(1, &VBO_Tri);
+    glBindVertexArray(VAO_Tri);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO_Tri);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(triVerts), triVerts, GL_STATIC_DRAW);
+    
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4*sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4*sizeof(float), (void*)(2*sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    // --- 3. CIRCLE ---
+    std::vector<float> circVerts;
+    // Center
+    circVerts.push_back(0.0f); circVerts.push_back(0.0f); // Pos
+    circVerts.push_back(0.5f); circVerts.push_back(0.5f); // Tex
+    
+    for(int i=0; i<=numCircleVerts; i++) {
+        float a = (float)i / (float)numCircleVerts * 6.283185f;
+        float x = cosf(a) * 0.5f; // Radius 0.5 (diam 1.0)
+        float y = sinf(a) * 0.5f;
+        circVerts.push_back(x); circVerts.push_back(y);
+        circVerts.push_back(x + 0.5f); circVerts.push_back(y + 0.5f);
+    }
+    
+    glGenVertexArrays(1, &VAO_Circle); glGenBuffers(1, &VBO_Circle);
+    glBindVertexArray(VAO_Circle);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO_Circle);
+    glBufferData(GL_ARRAY_BUFFER, circVerts.size()*sizeof(float), circVerts.data(), GL_STATIC_DRAW);
+    
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4*sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4*sizeof(float), (void*)(2*sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    glBindVertexArray(0);
+
+    world.system<E_Transform, E_Sprite>("RenderSystem")
+        .each([this]
+              (flecs::entity e, E_Transform& t, E_Sprite& sprite) {
+            
+            const E_Color* col = e.has<E_Color>() ? &e.get<E_Color>() : nullptr;
+            const E_Texture* tex = e.has<E_Texture>() ? &e.get<E_Texture>() : nullptr;
+            const E_EffectBloom* bloom = e.has<E_EffectBloom>() ? &e.get<E_EffectBloom>() : nullptr;
+            const E_EffectHover* hover = e.has<E_EffectHover>() ? &e.get<E_EffectHover>() : nullptr;
+            const E_EffectShadow* shadow = e.has<E_EffectShadow>() ? &e.get<E_EffectShadow>() : nullptr;
+            const E_EffectOutline* outline = e.has<E_EffectOutline>() ? &e.get<E_EffectOutline>() : nullptr;
+            const E_EffectTranspare* trans = e.has<E_EffectTranspare>() ? &e.get<E_EffectTranspare>() : nullptr;
+
+            if(hover) hoverIt(sprite, e, t);
+
+            float alpha = (trans && trans->work) ? trans->alpha : 1.0f;
+
+            glUseProgram(shaderProgram);
+            int winW = 800, winH = 600;
+            const E_WindowSize* ws = e.world().has<E_WindowSize>() ? &e.world().get<E_WindowSize>() : nullptr;
+            if (ws) { winW = ws->w; winH = ws->h; }
+
+            glm::mat4 projection = glm::ortho(0.0f, (float)winW, (float)winH, 0.0f, -100.0f, 100.0f);
+            glUniformMatrix4fv(uProjLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+            glm::mat4 view = glm::mat4(1.0f);
+
+            float camX = winW * 0.5f;
+            float camY = winH * 0.5f;
+            float zoom = 1.0f;
+            bool camFound = false;
+
+            qCamera_.each([&](flecs::entity eCam, E_Transform& ct, E_Camera& cc) {
+                if (cc.active) {
+                    camX = ct.x;
+                    camY = ct.y;
+                    zoom = cc.zoom;
+                    camFound = true;
+                }
+            });
+
+            if (camFound) {
+                view = glm::translate(view, glm::vec3(winW * 0.5f, winH * 0.5f, 0.0f));
+                view = glm::scale(view, glm::vec3(zoom, zoom, 1.0f));
+                view = glm::translate(view, glm::vec3(-camX, -camY, 0.0f));
+            }
+
+            glUniformMatrix4fv(uViewLoc, 1, GL_FALSE, glm::value_ptr(view));
+            // =========================================================
+            
+                        auto drawPass = [&](glm::vec3 posOffset, glm::vec3 scale, glm::vec4 color, bool useTex, float bloomVal) {
+                glm::mat4 model = glm::mat4(1.0f);
+                model = glm::translate(model, glm::vec3(t.x + posOffset.x, t.y + posOffset.y, t.layer + posOffset.z)); 
+                model = glm::rotate(model, glm::radians(t.angle), glm::vec3(0.0f, 0.0f, 1.0f)); 
+                
+                unsigned int currentVAO = VAO_Rect;
+                int count = 6;
+                GLenum mode = GL_TRIANGLES;
+                bool indexed = true;
+
+                float sx = sprite.width;
+                float sy = sprite.height;
+
+                if (sprite.type == E_Sprite::CIRCLE) {
+                    currentVAO = VAO_Circle;
+                    sx = sprite.radius * 2.0f;
+                    sy = sprite.radius * 2.0f;
+                    count = numCircleVerts + 2; // Center + 32 points + 1 closing
+                    mode = GL_TRIANGLE_FAN;
+                    indexed = false;
+                } else if (sprite.type == E_Sprite::TRIANGLE) {
+                    currentVAO = VAO_Tri;
+                    count = 3;
+                    mode = GL_TRIANGLES;
+                    indexed = false;
+                }
+
+                model = glm::scale(model, glm::vec3(sx * t.xScale * scale.x, sy * t.yScale * scale.y, 1.0f)); 
+                
+                glUniformMatrix4fv(uModelLoc, 1, GL_FALSE, glm::value_ptr(model));
+                glUniform4f(uColorLoc, color.r, color.g, color.b, color.a * alpha);
+                glUniform1f(uBloomLoc, bloomVal);
+                glUniform1i(uUseTexLoc, useTex);
+
+                glBindVertexArray(currentVAO);
+                if (indexed) {
+                    glDrawElements(mode, count, GL_UNSIGNED_INT, 0);
+                } else {
+                    glDrawArrays(mode, 0, count);
+                }
+            };
+
+
+            // 1. Shadow
+            if (shadow && shadow->work) {
+                drawPass(glm::vec3(shadow->offset, shadow->offset, -0.1f), 
+                         glm::vec3(1.0f), glm::vec4(0,0,0,0.5f), false, 0.0f);
+            }
+
+            // 2. Outline
+            if (outline && outline->work) {
+                float scaleFactor = 1.05f; // +5% размера
+                drawPass(glm::vec3(0,0,-0.05f), glm::vec3(scaleFactor), 
+                         glm::vec4(0,0,0,1), false, 0.0f);
+            }
+
+            // 3. Main Sprite
+            float r=1, g=1, b=1;
+            if(col) { r=col->r; g=col->g; b=col->b; }
+            float bloomVal = (bloom && bloom->work) ? bloom->intensity : 0.0f;
+
+            if (tex && tex->id > 0) {
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, tex->id);
+                glUniform1i(uTextureLoc, 0);
+                drawPass(glm::vec3(0), glm::vec3(1), glm::vec4(r,g,b,1), true, bloomVal);
+            } else {
+                drawPass(glm::vec3(0), glm::vec3(1), glm::vec4(r,g,b,1), false, bloomVal);
+            }
+            
+            glBindVertexArray(0);
+        });
+
+    printf("[Engine] Render Resources initialized.\n");
+}
+
 
 
 void ECSWorld::update(float dt) {
     world.progress(dt);
-}
-
-void ECSWorld::drawSprite(E_Sprite sprite, bool isLineLoop) {
-    GLenum mode = isLineLoop ? GL_LINE_LOOP : (sprite.type == E_Sprite::RECTANGLE ? GL_QUADS : GL_TRIANGLE_FAN);
-
-    if (!isLineLoop && sprite.type == E_Sprite::TRIANGLE) mode = GL_TRIANGLES;
-
-    glBegin(mode);
-
-    switch (sprite.type) {
-        case E_Sprite::CIRCLE: {
-            if(!isLineLoop) glVertex2f(0.f, 0.f); 
-            for (int i = 0; i <= 32; ++i) {
-                float a = 2.f * 3.14159f * i / 32.f;
-                glVertex2f(cosf(a) * sprite.radius, sinf(a) * sprite.radius);
-            }
-            break;
-        }
-        case E_Sprite::RECTANGLE: {
-            float hw = sprite.width / 2.0f;
-            float hh = sprite.height / 2.0f;
-            glVertex2f(-hw, -hh);
-            glVertex2f( hw, -hh);
-            glVertex2f( hw,  hh);
-            glVertex2f(-hw,  hh);
-            break;
-        }
-        case E_Sprite::TRIANGLE: {
-            float hw = sprite.width / 2.0f;
-            float hh = sprite.height / 2.0f;
-            glVertex2f(-hw,  hh); // Left Bottom
-            glVertex2f( hw,  hh); // Right Bottom
-            glVertex2f( 0.f, -hh); // Top Center
-            break;
-        }
-    }
-    glEnd();
 }
 
 bool ECSWorld::hoverIt(E_Sprite &s, flecs::entity &e, E_Transform &t)
@@ -575,4 +720,26 @@ bool ECSWorld::hoverIt(E_Sprite &s, flecs::entity &e, E_Transform &t)
     }
 
     return isInside;
+}
+
+// === Shaders ===
+
+unsigned int ECSWorld::createShader(const char* vertexSource, const char* fragmentSource) {
+    unsigned int vs = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vs, 1, &vertexSource, NULL);
+    glCompileShader(vs);
+    // TODO check errors
+
+    unsigned int fs = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fs, 1, &fragmentSource, NULL);
+    glCompileShader(fs);
+
+    unsigned int prog = glCreateProgram();
+    glAttachShader(prog, vs);
+    glAttachShader(prog, fs);
+    glLinkProgram(prog);
+    
+    glDeleteShader(vs);
+    glDeleteShader(fs);
+    return prog;
 }

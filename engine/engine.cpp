@@ -27,11 +27,11 @@ bool Engine::init(int w, int h, BackGroundColor c) {
         return false;
     }
 
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     window_w = w; window_h = h; background_color = c;
-    ui.init(window_w, window_h);
 
     // init ecs
     ecs.init();  // ECS components and base systems
@@ -56,6 +56,14 @@ bool Engine::createWindow(const char* title) {
 
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
+
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+        printf("Failed to initialize GLAD\n");
+        return false;
+    }
+
+    ecs.initRender();
+    ui.init(window_w, window_h);
 
     glfwSetWindowUserPointer(window, this);
 
@@ -204,14 +212,9 @@ void Engine::render() {
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glEnable(GL_DEPTH_TEST); // for the Z layers 
-    glDepthFunc(GL_LEQUAL);
-
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    glOrtho(0, window_w, window_h, 0, -100, 100);
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
+    
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL); 
 }
 
 // ================= Custom ECS systems ================= 
@@ -259,19 +262,7 @@ void Engine::loadScene(const std::string& name) {
         std::cerr << "[Engine] Scene not found: " << name << std::endl;
         return;
     }
-
-    // clear scene
-    // deleting entities with teg
-    ecs.getWorld().delete_with<SceneEntity>(); 
-
-    // init new scene
-    //if(currentSceneName == name) { printf("[Engine] Scene already loaded"); return; };
-    currentSceneName = name;
-    scenes[name](*this);
-
     pendingSceneLoad = name;
-    
-    printf("[Engine] Loaded scene: %s\n", name.c_str());
 }
 
 void Engine::reloadScene() {
